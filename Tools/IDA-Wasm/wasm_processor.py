@@ -527,6 +527,7 @@ class wasm_processor_t(processor_t):
     #
 
     def _ana(self, insn):
+        # dbg = print
         dbg("_ana at 0x%x" % insn.ea)
         opcode = insn.get_next_byte()
 
@@ -545,9 +546,13 @@ class wasm_processor_t(processor_t):
             for i, arg_t in enumerate(wi.args):
                 op = insn.ops[i]
 
-                if arg_t is varuint32:
-                    raw_bytes = get_next_bytes(insn, 4)
-                    arg = varuint32(raw_bytes)
+                if arg_t.__name__ in ('varuint32', 'varuint64'):
+                    raw_bytes = get_next_bytes(insn, 9) # TODO: const may be more than 4 bytes
+                                                        # e.g. 41 ff ff ff ff 07 => i32.const 0xffffffff
+                    if arg_t.__name__ == 'varuint32':
+                        arg = varuint32(raw_bytes)
+                    else:
+                        arg = varuint64(raw_bytes)
                     op.type = o_imm
                     op.value = arg.value
                     op.flags = OF_SHOW
@@ -557,7 +562,7 @@ class wasm_processor_t(processor_t):
                     dbg("adding VARUINT32 operand (value=%d, size=%d, raw=%s)" % (arg.value, arg.size, repr(raw_bytes)))
                     continue
 
-                if arg_t is block_type:
+                if arg_t.__name__ == 'block_type':
                     raw_bytes = get_next_bytes(insn, 4)
                     b = block_type(raw_bytes)
                     op.type = o_imm
@@ -569,7 +574,7 @@ class wasm_processor_t(processor_t):
                     dbg("adding BLOCK_TYPE operand (value=%d, size=%d, raw=%s)" % (b.value, b.size, repr(raw_bytes)))
                     continue
 
-                if arg_t is memory_immediate:
+                if arg_t.__name__ == 'memory_immediate':
                     raw_bytes = get_next_bytes(insn, 8)
                     mi = memory_immediate(raw_bytes)
                     op.type = o_imm
